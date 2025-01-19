@@ -18,7 +18,6 @@ const setAbbreviations = {
     "PRO": "Promotional"
 };
 
-
 document.addEventListener('DOMContentLoaded', function() {
     // Get the URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -26,6 +25,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Log the search string to the console
     console.log('Search String:', searchString);
+
+    if (searchString) {
+        // Set the searchbox value if search is defined
+        document.getElementById('search_input').value = searchString;
+    }
 
     // Parse the search string and filter cards
     const filteredCards = filterCardsBySearchString(cards, searchString);
@@ -49,103 +53,113 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function conditionEval(cost, condition) {
-    const regex = /([<>]=?|==?|!=)?(\d+)/;
-    let match = condition.match(regex);
-    if (!match) {
-        return false;
-    }
-
-    let operator = match[1];
-    let value = parseFloat(match[2]);
-    cost = parseFloat(cost);
-
-    switch (operator) {
-        case "<":
-            return cost < value;
-        case "<=":
-            return cost <= value;
-        case ">":
-            return cost > value;
-        case ">=":
-            return cost >= value;
-        case "!=":
-            return cost !== value;
-        default:
-            // This covers no operator, '=' and '=='
-            return cost === value;
-    }
-}
 
 function filterCard(card, terms) {
-    let term_pairs = terms.map((el, index) => [el, terms[index + 1] || ""]);
-    for (const [term, next_term] of term_pairs) {
+    let termPairs = terms.map((el, index) => [el, terms[index + 1] || ""]);
+    let orConditionResults = []; // Using an array for OR condition checks allows chaining
+
+    function conditionEval(cost, condition) {
+        const regex = /([<>]=?|==?|!=)?(\d+)/;
+        let match = condition.match(regex);
+        if (!match) {
+            return false;
+        }
+
+        let operator = match[1];
+        let value = parseFloat(match[2]);
+        cost = parseFloat(cost);
+
+        switch (operator) {
+            case "<":
+                return cost < value;
+            case "<=":
+                return cost <= value;
+            case ">":
+                return cost > value;
+            case ">=":
+                return cost >= value;
+            case "!=":
+                return cost !== value;
+            case "":
+            case "=":
+            case "==":
+                return cost === value;
+            default:
+                return false;
+        }
+    }
+
+    for (const [term, nextTerm] of termPairs) {
         if (term.includes(':')) {
             const [prefix, ...queryParts] = term.split(':');
             const query = queryParts.join(':').toLowerCase().trim();
 
-            let queryIsORConditional = next_term === '|'; // Special case where an OR operand is in play
+            if (!query) {
+                return false; // If no query provided, mark as a failed search
+            }
+
+            let queryCheck = true;
 
             switch (prefix.toLowerCase()) {
                 case 'n':
                 case 'name':
                 case 'nm':
                     if (!card.name?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'num':
                 case 'number':
                     // Not sure _why_ would want to search number with operands, but now it can be done
                     if (!card.hasOwnProperty('number')) {
-                        return false;
+                        queryCheck = false;
+                    } else if (!conditionEval(card.number, query)) {
+                        queryCheck = false;
                     }
-                    if (!conditionEval(card.number, query)) {
-                        return false;
-                    };
                     break;
                 case 'fl':
                 case 'flavor':
                 case 'flavortext':
                     if (!card.flavorText?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 't':
                 case 'type':
                     if (!card.type?.some(type => type.toLowerCase().includes(query))) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'k':
                 case 'keyword':
                     if (!card.subTypes?.some(subType => subType.toLowerCase().includes(query))) {
-                        return false;
+                        queryCheck = false;
                     };
                     break;
                 case 'r':
                 case 'rarity':
                     if (!card.rarity?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'a':
                 case 'artist':
                     if (!card.hasOwnProperty('artist')) {
-                        return false;
-                    }
-                    let _artist = Array.isArray(card.artist)
-                        ? card.artist.join(', ') // Join array of artists into a string
-                        : card.artist // Handle single string artist
-                    if (!_artist.toLowerCase().includes(query)) {
-                        return false;
+                        queryCheck = false;
+                    } else {
+                        let _artist = Array.isArray(card.artist)
+                            ? card.artist.join(', ') // Join array of artists into a string
+                            : card.artist // Handle single string artist
+                        if (!_artist.toLowerCase().includes(query)) {
+                            queryCheck = false;
+                        }
                     }
                     break;
                 case 'e':
                 case 'effect':
                     if (!card.effect?.some(effect => effect.toLowerCase().includes(query))) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 's':
                 case 'set':
@@ -153,96 +167,111 @@ function filterCard(card, terms) {
                     let _setName = card.setName?.toLowerCase();
                     let _setAbbreviation = Object.keys(setAbbreviations).find(abbr => setAbbreviations[abbr].toLowerCase() === _setName);
                     if (!(_setName.includes(query) || _setAbbreviation.toLowerCase() === query)) {
-                        return false;
+                        queryCheck = false;
                     }
                     break;
                 case 'd':
                 case 'date':
                 case 'releasedate':
                     if (!card.releaseDate?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'ts':
                 case 'solve':
                 case 'tosolve':
                     if (!card.toSolve?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 're':
                 case 'reward':
                     if (!card.reward?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'l':
                 case 'lesson':
                     if (!card.lesson?.some(lesson => lesson.toLowerCase().includes(query))) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'c':
                 case 'cost':
                 case 'power':
                 case 'pow':
                     if (!card.hasOwnProperty('cost')) {
-                        return false;
+                        queryCheck = false;
+                    } else if (!conditionEval(card.cost, query)) {
+                        queryCheck = false;
                     }
-                    if (!conditionEval(card.cost, query)) {
-                        return false;
-                    };
                     break;
                 case 'dmg':
                 case 'damage':
                 case 'dmgeachturn':
                     if (!card.hasOwnProperty('dmgEachTurn')) {
-                        return false;
-                    };
-                    if (!conditionEval(card.dmgEachTurn, query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    } else if (!conditionEval(card.dmgEachTurn, query)) {
+                        queryCheck = false;
+                    }
                     break;
                 case 'h':
                 case 'health':
                     if (!card.hasOwnProperty('health')) {
-                        return false;
-                    };
-                    if (!conditionEval(card.health, query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    } else if (!conditionEval(card.health, query)) {
+                        queryCheck = false;
+                    }
                     break;
                 case 'note':
                     if (!card.note?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'pl':
                 case 'provideslesson':
                 case 'provides.lesson':
                     if (!card.provides?.some(item => {return item.lesson?.toLowerCase().includes(query)})) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'pa':
                 case 'providesamount':
                 case 'provides.amount':
                     if (!card.provides?.some(item => {return conditionEval(item.amount?.toString(), query)})) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'tw':
                 case 'towin':
                     if (!card.toWin?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
                 case 'p':
                 case 'prize':
                     if (!card.prize?.toLowerCase().includes(query)) {
-                        return false;
-                    };
+                        queryCheck = false;
+                    }
                     break;
+                default:
+                    queryCheck = false; // Given term is not known, so mark as failed search
+                    break;
+            }
+
+            if (nextTerm === '|') {
+                // This check is part of an OR condition, so don't fail if it's false
+                orConditionResults.push(queryCheck);
+            } else if (orConditionResults.length) {
+                // Check result of OR condition
+                orConditionResults.push(queryCheck);
+                if (orConditionResults.every(val => val === false)) {
+                    return false; // All parts of the OR conditional were false, so return false
+                }
+                // At least one of the conditions was true, so reset the lookup in case there's another OR check
+                orConditionResults = [];
+            } else if (!queryCheck) {
+                return false;
             }
         } else if (term === '*') {
             // Do nothing; * is defined as an 'and' operand condition, but each separate term is already and conditional...
@@ -260,6 +289,10 @@ function filterCard(card, terms) {
 }
 
 function filterCardsBySearchString(cards, searchString) {
+    if (!searchString) {
+        return cards; // If search for nothing, show _all_ cards
+    }
+
     // Split the search string into terms, handling quotes
     const terms = searchString.match(/(".*?"|[^"\s]+)+(?=\s*|\s*$)/g).map(term => term.replace(/"/g, '')).filter(term => term.trim() !== '');
     console.log(terms)
