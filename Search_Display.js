@@ -137,6 +137,10 @@ function filterCard(card, terms) {
             }
 
             let queryCheck = true;
+            let invert_search = prefix[0] == '!';
+            if (invert_search) {
+                prefix = prefix.slice(1);
+            }
 
             switch (prefix.toLowerCase()) {
                 case 'a':
@@ -340,6 +344,10 @@ function filterCard(card, terms) {
                 default:
                     queryCheck = false; // Given term is not known, so mark as failed search
                     break;
+            }
+
+            if (invert_search) {
+                queryCheck = !queryCheck;
             }
 
             if (nextTerm === '|') {
