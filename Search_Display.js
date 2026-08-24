@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Log the search string to the console
     console.log('Search String:', searchString);
+    console.log('In enhancement/negative_search');
 
     if (searchString) {
         // Set the searchbox value if search is defined
