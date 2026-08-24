@@ -142,6 +142,10 @@ function filterCard(card, terms) {
                 prefix = prefix.slice(1);
             }
 
+            console.log('prefix: ', prefix);
+            console.log('query: ', query);
+            console.log('invert_search: ', invert_search);
+
             switch (prefix.toLowerCase()) {
                 case 'a':
                 case 'artist':
@@ -346,9 +350,13 @@ function filterCard(card, terms) {
                     break;
             }
 
+            console.log('queryCheck: ', queryCheck);
+
             if (invert_search) {
                 queryCheck = !queryCheck;
             }
+            
+            console.log('queryCheck: ', queryCheck);
 
             if (nextTerm === '|') {
                 // This check is part of an OR condition, so don't fail if it's false
