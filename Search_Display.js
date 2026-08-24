@@ -130,7 +130,7 @@ function filterCard(card, terms) {
 
     for (const [term, nextTerm] of termPairs) {
         if (term.includes(':')) {
-            const [prefix, ...queryParts] = term.split(':');
+            let [prefix, ...queryParts] = term.split(':');
             const query = queryParts.join(':').toLowerCase().trim();
 
             if (!query) {
